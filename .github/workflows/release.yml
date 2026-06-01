@@ -3,7 +3,6 @@ name: Release
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch:
 
 jobs:
   build:
@@ -36,23 +35,6 @@ jobs:
         with:
           files: dist/*
           generate_release_notes: true
-
-  # Publish to PyPI via Trusted Publishing (no token).
-  # One-time setup: add a PyPI Trusted Publisher for this repo + workflow, then set
-  # the repository variable PYPI_PUBLISH=true.
-  pypi:
-    needs: build
-    if: ${{ vars.PYPI_PUBLISH == 'true' }}
-    runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
-      - uses: pypa/gh-action-pypi-publish@release/v1
 
   # Bump the formula in WillieCubed/homebrew-tap (tag pushes only).
   # One-time setup: add the HOMEBREW_TAP_TOKEN secret (push access to the tap) and set

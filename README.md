@@ -75,43 +75,29 @@ message — instead of patching one model's Jinja template by hand.
 Requires the [`claude` CLI](https://claude.com/claude-code) and LM Studio with at least
 one model downloaded.
 
-### uv (recommended)
-
-```bash
-uv tool install claude-lms
-```
-
-Or try it once without installing:
-
-```bash
-uvx claude-lms --doctor
-```
-
-### pipx
-
-```bash
-pipx install claude-lms
-```
-
-### pip
-
-```bash
-pip install claude-lms
-```
-
-### Homebrew
+### Homebrew (recommended)
 
 ```bash
 brew install WillieCubed/tap/claude-lms
 ```
 
-### From source
+### Python (from source)
+
+Requires Python 3.8+. Install from a checkout:
 
 ```bash
 git clone https://github.com/WillieCubed/claude-lms
 cd claude-lms
-uv tool install .        # or: ./scripts/install.sh
+uv tool install .        # or: pipx install .   or: pip install .
 ```
+
+Or straight from GitHub, without cloning:
+
+```bash
+uv tool install git+https://github.com/WillieCubed/claude-lms
+```
+
+`claude-lms` is not published to a package index — install via Homebrew or from source.
 
 ---
 

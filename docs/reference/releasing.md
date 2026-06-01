@@ -1,48 +1,33 @@
 # Releasing claude-lms
 
-There are two paths: the **automated** workflow (default) and a **manual** fallback for
-when you'd rather not use CI (or CI is unavailable). Both produce the same result: a
-tagged GitHub release, a PyPI release, and an updated Homebrew formula in
-[`WillieCubed/homebrew-tap`](https://github.com/WillieCubed/homebrew-tap).
+`claude-lms` is distributed via **Homebrew** and **source installs** — it is not
+published to a package index (PyPI). A release therefore produces two things: a tagged
+GitHub release (with built artifacts attached, for source installs) and an updated
+formula in [`WillieCubed/homebrew-tap`](https://github.com/WillieCubed/homebrew-tap),
+which is the source of truth for the formula.
 
-The tap holds the source of truth for the Homebrew formula; this repo no longer carries a
-copy.
+There are two paths: the **automated** workflow (default) and a **manual** fallback.
 
 ---
 
 ## Automated (recommended)
 
 Pushing a `vX.Y.Z` tag runs [`.github/workflows/release.yml`](../../.github/workflows/release.yml),
-which builds the package, creates the GitHub release, publishes to PyPI (via Trusted
-Publishing), and bumps the tap formula.
+which builds the package, creates the GitHub release, and bumps the tap formula.
 
 1. Bump the version in `pyproject.toml` **and** `src/claude_lms/__init__.py`, and update
    `CHANGELOG.md`.
 2. Commit, then tag and push:
 
    ```bash
-   git tag v0.1.0
-   git push origin v0.1.0
+   git tag v0.1.1
+   git push origin v0.1.1
    ```
 
-The PyPI and Homebrew jobs are **gated** — they only run once configured (below), so a
-tag pushed before setup just builds and creates the GitHub release.
+The Homebrew bump is **gated** — it only runs once configured (below), so a tag pushed
+before setup just builds and creates the GitHub release.
 
-### One-time setup for the automation
-
-**PyPI (Trusted Publishing, no token stored):**
-
-1. On PyPI, add a *pending publisher* (works before the project exists): Account →
-   Publishing → add a GitHub publisher with
-   - Owner: `WillieCubed`, Repository: `claude-lms`
-   - Workflow: `release.yml`, Environment: `pypi`
-2. Enable the gated job:
-
-   ```bash
-   gh variable set PYPI_PUBLISH --body true -R WillieCubed/claude-lms
-   ```
-
-**Homebrew auto-bump:**
+### One-time setup for the Homebrew auto-bump
 
 1. Create a token with push access to `WillieCubed/homebrew-tap` (a fine-grained PAT
    scoped to that repo, Contents: read/write), then:
@@ -55,39 +40,24 @@ tag pushed before setup just builds and creates the GitHub release.
 2. The formula must already exist in the tap — see *Bootstrap the formula* below for the
    first release. After that, the workflow keeps it current.
 
-To publish the current version without cutting a new tag (e.g. the first PyPI release
-once the publisher is configured), run the workflow manually:
-
-```bash
-gh workflow run release.yml -R WillieCubed/claude-lms
-```
-
 ---
 
 ## Manual (fallback)
 
-### 1. Build
+### 1. Build the release artifacts
 
 ```bash
 python -m pip install build && python -m build   # or: uv build
 # -> dist/claude_lms-X.Y.Z.tar.gz and dist/claude_lms-X.Y.Z-py3-none-any.whl
 ```
 
-### 2. Publish to PyPI
-
-Create an API token at <https://pypi.org/manage/account/token/>, then:
-
-```bash
-uv publish --token pypi-XXXXXXXX          # or: python -m twine upload dist/*
-```
-
-### 3. Create the GitHub release
+### 2. Create the GitHub release
 
 ```bash
 gh release create vX.Y.Z dist/* --generate-notes -R WillieCubed/claude-lms
 ```
 
-### 4. Update the Homebrew formula
+### 3. Update the Homebrew formula
 
 ```bash
 # Checksum of the tag's source tarball:
@@ -110,7 +80,7 @@ brew audit --strict --online WillieCubed/tap/claude-lms
 ## Bootstrap the formula (first release only)
 
 The auto-bump action updates an existing formula, so the first one is created by hand.
-Add `Formula/claude-lms.rb` to the tap with the `url`/`sha256` for `v0.1.0`:
+Add `Formula/claude-lms.rb` to the tap with the `url`/`sha256` for the release:
 
 ```ruby
 class ClaudeLms < Formula
@@ -118,7 +88,7 @@ class ClaudeLms < Formula
 
   desc "Run Claude Code against local models in LM Studio"
   homepage "https://github.com/WillieCubed/claude-lms"
-  url "https://github.com/WillieCubed/claude-lms/archive/refs/tags/v0.1.0.tar.gz"
+  url "https://github.com/WillieCubed/claude-lms/archive/refs/tags/v0.1.1.tar.gz"
   sha256 "FILL_IN"   # shasum -a 256 of the tarball above
   license "MIT"
   head "https://github.com/WillieCubed/claude-lms.git", branch: "main"

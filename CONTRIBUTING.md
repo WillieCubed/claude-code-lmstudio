@@ -37,11 +37,11 @@ Releases are automated by `.github/workflows/release.yml`.
    `src/claude_lms/__init__.py`.
 2. Tag `vX.Y.Z` and push the tag.
 
-Pushing the tag builds the package, creates the GitHub release, publishes to PyPI (via
-Trusted Publishing), and bumps the formula in `WillieCubed/homebrew-tap`. The PyPI and
-Homebrew steps are gated on the `PYPI_PUBLISH` / `HOMEBREW_BUMP` repository variables and
-the `HOMEBREW_TAP_TOKEN` secret — see the workflow file for the one-time setup. The tap
-holds the source of truth for the Homebrew formula.
+Pushing the tag builds the package, creates the GitHub release, and bumps the formula in
+`WillieCubed/homebrew-tap`. The Homebrew step is gated on the `HOMEBREW_BUMP` repository
+variable and the `HOMEBREW_TAP_TOKEN` secret. The tap holds the source of truth for the
+formula. `claude-lms` is not published to a package index — distribution is Homebrew and
+source installs.
 
 For the full automated and manual release procedures (and the one-time setup), see
 [docs/reference/releasing.md](docs/reference/releasing.md).

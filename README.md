@@ -133,6 +133,7 @@ cll set-default qwen/qwen3.6-27b  # save the default model (to config)
 cll clear-default                 # clear the saved default
 cll doctor                        # check your environment
 cll install-completion [shell]    # install zsh/bash tab-completion
+cll install-completion --uninstall  # remove it again
 ```
 
 ### Passing flags to `claude`
@@ -161,7 +162,9 @@ exec $SHELL                   # reload
 ```
 
 Then `cll <TAB>` completes subcommands and `cll -m <TAB>` / `cll set-default <TAB>`
-complete model ids.
+complete model ids. Remove it with `cll install-completion --uninstall` — package
+uninstallers (`brew`/`pip`/`uv`) don't, since the script and rc block live in your home
+directory, outside the package.
 
 ### Configuration
 

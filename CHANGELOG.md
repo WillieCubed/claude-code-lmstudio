@@ -6,22 +6,30 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
-## [0.1.3]
+## [0.2.0]
+
+A model-selection and UX release. (Supersedes a withdrawn 0.1.3, whose features —
+mis-numbered as a patch — are folded in here under a proper MINOR bump.)
 
 ### Added
 
-- Easier, more discoverable model selection:
-  - `cll --set-default MODEL` / `--clear-default` — persist a default model to
-    `~/.config/claude-lms/config.json` (no shell-profile editing). `CLL_MODEL` stays as a
-    one-off override.
-  - `cll --models` (and `cll models`) — a table of available models with arch, quant, and
-    which is loaded/default.
-  - `--pick` menu now annotates each model (arch · quant, loaded ★, default).
-  - Shell tab-completion for `cll -m <TAB>` (zsh + bash) under `completions/`.
-  - A launch hint pointing at `--pick` / `--set-default` when the model is auto-resolved.
+- **Subcommands** for standalone actions: `cll models`, `cll list-models`, `cll doctor`,
+  `cll set-default <model>`, `cll clear-default`, `cll install-completion`.
+- **Saved default model**: `cll set-default` / `cll clear-default`, stored in
+  `~/.config/claude-lms/config.json`. `CLL_MODEL` remains a one-off override.
+- **`cll models`** — a table of available models with arch, quant, and which is
+  loaded/default.
+- **Interactive `--pick`** — an arrow-key menu (↑/↓ or j/k, Enter, q to cancel), with
+  each model annotated; falls back to a numbered menu when there's no TTY.
+- **`cll install-completion`** — turnkey zsh/bash tab-completion: writes the script and
+  wires it into your shell rc (idempotent). `cll -m <TAB>` / `cll set-default <TAB>`
+  complete model ids.
+- A launch hint pointing at `--pick` / `cll set-default` when the model is auto-resolved.
 
 ### Changed
 
+- Standalone actions moved from flags (`--models`, `--doctor`, …) to subcommands.
+  Launch modifiers (`-m`, `--pick`) remain flags.
 - Model resolution order now includes the saved default: `-m/--model` → `--pick` →
   `$CLL_MODEL` → saved default → loaded model → only model → menu.
 
@@ -70,8 +78,8 @@ All notable changes to this project are documented here. The format is based on
 - Standalone `claude-lms-proxy` console script.
 - Packaging: PyPI metadata, a Homebrew formula, and GitHub Actions CI.
 
-[Unreleased]: https://github.com/WillieCubed/claude-lms/compare/v0.1.3...HEAD
-[0.1.3]: https://github.com/WillieCubed/claude-lms/compare/v0.1.2...v0.1.3
+[Unreleased]: https://github.com/WillieCubed/claude-lms/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/WillieCubed/claude-lms/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/WillieCubed/claude-lms/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/WillieCubed/claude-lms/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/WillieCubed/claude-lms/releases/tag/v0.1.0

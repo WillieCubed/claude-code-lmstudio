@@ -167,4 +167,4 @@ ruff check .
 
 ## License
 
-[MIT](LICENSE) © Willie Chalmers III
+This repo uses the MIT License

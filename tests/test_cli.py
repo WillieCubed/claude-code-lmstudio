@@ -1,4 +1,5 @@
 """Tests for CLI helpers that don't touch the network."""
+from claude_lms import cli
 from claude_lms.cli import match_model
 
 AVAILABLE = [
@@ -33,3 +34,23 @@ def test_no_match_returns_nothing():
 
 def test_empty_available_is_no_match():
     assert match_model("qwen3.6", []) == (None, [])
+
+
+def test_set_and_clear_default_round_trip(monkeypatch, tmp_path):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    monkeypatch.delenv("CLL_MODEL", raising=False)
+    assert cli.configured_default() is None
+    assert cli.main(["--set-default", "qwen/qwen3.6-27b"]) == 0
+    assert cli.configured_default() == "qwen/qwen3.6-27b"
+    assert cli.effective_default() == "qwen/qwen3.6-27b"
+    assert cli.main(["--clear-default"]) == 0
+    assert cli.configured_default() is None
+
+
+def test_env_overrides_configured_default(monkeypatch, tmp_path):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    cli.save_config({"default_model": "config-model"})
+    monkeypatch.setenv("CLL_MODEL", "env-model")
+    assert cli.effective_default() == "env-model"
+    monkeypatch.delenv("CLL_MODEL", raising=False)
+    assert cli.effective_default() == "config-model"

@@ -68,6 +68,9 @@ accepts. Responses stream through unbuffered, so live token streaming still work
 This fixes the whole class of problem — any strict template, any hook-injected system
 message — instead of patching one model's Jinja template by hand.
 
+For how the pieces fit together (the launcher, the proxy, the request flow, and the
+lifecycle), see [docs/reference/architecture.md](docs/reference/architecture.md).
+
 ---
 
 ## Install
@@ -153,6 +156,20 @@ Any model LM Studio can serve works. Models with strict chat templates (e.g.
 Tolerant-template models (e.g. `gpt-oss`, OLMo, Mistral) work either way. Tool calling
 and streaming both pass through unchanged.
 
+## Performance
+
+The proxy is thin — it adds single-digit milliseconds (parse, fold stray system messages
+only when present, forward) and streams responses with `TCP_NODELAY` and `read1`, so
+tokens appear the instant LM Studio emits them. **The latency you feel is the local model
+generating tokens, not the proxy.** To speed it up:
+
+- **use a lighter model** for interactive work — `cll -m gpt-oss-20b`;
+- **lower Claude Code's thinking effort** (reasoning models like Qwen think for a long
+  time even on trivial prompts);
+- **load the model with a smaller context** — `lms load <model> -c 65536` (a 256k context
+  is much slower to prefill than you need for most turns);
+- **enable Flash Attention / KV-cache quantization and full GPU offload** in LM Studio.
+
 ## The proxy on its own
 
 The normalizer can run standalone (e.g. for other Anthropic-compatible clients):
@@ -177,11 +194,12 @@ brew uninstall claude-lms       # Homebrew
 
 ```bash
 uv tool install --editable .   # or: pip install -e ".[dev]"
-pytest                         # unit tests for the normalizer + CLI helpers
+pytest                         # tests for the normalizer, CLI, and proxy
 ruff check .
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [CHANGELOG.md](CHANGELOG.md).
+See [docs/reference/architecture.md](docs/reference/architecture.md) for how it works,
+and [CONTRIBUTING.md](CONTRIBUTING.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

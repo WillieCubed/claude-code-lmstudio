@@ -390,6 +390,7 @@ commands:
   cll clear-default                clear the saved default
   cll doctor                       check your environment
   cll install-completion [shell]   install zsh/bash tab-completion
+  cll install-completion --uninstall   remove it again
 
 Unrecognized launch arguments are forwarded to claude, e.g.:
   cll --dangerously-skip-permissions -p "explain this repo"
@@ -468,16 +469,21 @@ def _run_command(command: str, rest: list[str]) -> int:
         _eprint("cll: saved default cleared")
         return 0
     if command == "install-completion":
-        shell = rest[0] if rest else completions.detect_shell()
+        uninstall = any(token in ("--uninstall", "-u") for token in rest)
+        shell = next((t for t in rest if not t.startswith("-")), None) or completions.detect_shell()
         if shell not in ("zsh", "bash"):
             _eprint(
                 f"cll: couldn't detect a supported shell (got {shell!r}).\n"
-                "     Run: cll install-completion zsh   (or bash)"
+                "     Run: cll install-completion zsh   (or bash, plus --uninstall to remove)"
             )
             return 1
-        for line in completions.install(shell):
+        for line in (completions.uninstall if uninstall else completions.install)(shell):
             _eprint(f"cll: {line}")
-        _eprint(f"cll: {shell} completion installed — restart your shell (e.g. `exec {shell}`).")
+        if uninstall:
+            _eprint(f"cll: {shell} completion removed — restart your shell (e.g. `exec {shell}`).")
+        else:
+            _eprint(f"cll: {shell} completion installed — restart your shell (e.g. `exec {shell}`).")
+            _eprint("cll: (remove later with: cll install-completion --uninstall)")
         return 0
     return 2  # unreachable: command was validated against COMMANDS
 

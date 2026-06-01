@@ -28,9 +28,29 @@ def test_install_is_idempotent(tmp_path):
     assert rc.count(">>> claude-lms completion >>>") == 1
 
 
+def test_install_then_uninstall_round_trip(tmp_path):
+    home = str(tmp_path)
+    completions.install("zsh", home=home)
+    completions.uninstall("zsh", home=home)
+    assert not os.path.exists(os.path.join(home, ".zsh", "completions", "_cll"))
+    rc = open(os.path.join(home, ".zshrc")).read()
+    assert "claude-lms completion" not in rc
+
+
+def test_uninstall_is_idempotent_when_absent(tmp_path):
+    # Removing when nothing was installed must not error.
+    messages = completions.uninstall("zsh", home=str(tmp_path))
+    assert any("not present" in m for m in messages)
+
+
 def test_install_unsupported_shell_raises(tmp_path):
     with pytest.raises(ValueError):
         completions.install("fish", home=str(tmp_path))
+
+
+def test_uninstall_unsupported_shell_raises(tmp_path):
+    with pytest.raises(ValueError):
+        completions.uninstall("fish", home=str(tmp_path))
 
 
 def test_detect_shell(monkeypatch):

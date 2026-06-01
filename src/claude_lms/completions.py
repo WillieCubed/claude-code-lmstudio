@@ -102,3 +102,58 @@ def install(shell: str, home: str | None = None) -> list[str]:
 
     messages.append(f"updated {rc}" if _ensure_rc_block(rc, block) else f"{rc} already configured")
     return messages
+
+
+def _strip_rc_block(rc_path: str) -> bool:
+    """Remove the marker-wrapped block (and one preceding blank line) from ``rc_path``.
+
+    Returns True if the file was modified.
+    """
+    try:
+        with open(rc_path) as handle:
+            content = handle.read()
+    except OSError:
+        return False
+    if _MARKER_BEGIN not in content:
+        return False
+    kept, skipping = [], False
+    for line in content.splitlines(keepends=True):
+        stripped = line.strip()
+        if stripped == _MARKER_BEGIN:
+            skipping = True
+            if kept and kept[-1].strip() == "":
+                kept.pop()  # drop the blank line install added before the block
+            continue
+        if stripped == _MARKER_END:
+            skipping = False
+            continue
+        if not skipping:
+            kept.append(line)
+    with open(rc_path, "w") as handle:
+        handle.write("".join(kept))
+    return True
+
+
+def uninstall(shell: str, home: str | None = None) -> list[str]:
+    """Remove completion for ``shell`` (the script + the rc block). Idempotent.
+
+    Returns log lines describing what happened.
+    """
+    home = home or os.path.expanduser("~")
+    if shell == "zsh":
+        comp_file = os.path.join(home, ".zsh", "completions", "_cll")
+        rc = os.path.join(home, ".zshrc")
+    elif shell == "bash":
+        comp_file = os.path.join(home, ".local", "share", "claude-lms", "cll.bash")
+        rc = os.path.join(home, ".bashrc")
+    else:
+        raise ValueError(f"unsupported shell: {shell!r}")
+
+    messages: list[str] = []
+    if os.path.exists(comp_file):
+        os.remove(comp_file)
+        messages.append(f"removed {comp_file}")
+    else:
+        messages.append(f"{comp_file} not present")
+    messages.append(f"cleaned {rc}" if _strip_rc_block(rc) else f"{rc} had no completion block")
+    return messages

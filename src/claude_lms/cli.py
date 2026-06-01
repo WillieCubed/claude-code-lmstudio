@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import select
 import shutil
 import signal
 import subprocess
@@ -18,7 +19,7 @@ import urllib.error
 import urllib.request
 from urllib.parse import urlsplit
 
-from . import __version__
+from . import __version__, completions
 from .proxy import make_server
 
 DEFAULT_LMSTUDIO_URL = "http://localhost:1234"
@@ -158,13 +159,96 @@ def _annotate(model: str, details: dict, default: str | None) -> str:
     return f"{model}{meta}{mark}"
 
 
-def pick_model(
-    models: list[str], details: dict | None = None, default: str | None = None
-) -> str | None:
-    """Prompt the user to choose a model from a numbered, annotated menu."""
-    if not models:
-        return None
-    details = details or {}
+_FALLBACK = object()  # sentinel: interactive picker unavailable -> use the numbered menu
+
+
+def _key_action(key: str, selected: int, count: int) -> tuple[int, str]:
+    """Map a key to ``(new_selected, action)``.
+
+    ``action`` is one of ``move``, ``select``, ``cancel``, ``ignore``. Kept pure so the
+    navigation logic is unit-testable without a terminal.
+    """
+    if key in ("\r", "\n"):
+        return selected, "select"
+    if key in ("q", "\x1b", "\x03"):  # q, Esc, Ctrl-C
+        return selected, "cancel"
+    if key in ("up", "k"):
+        return (selected - 1) % count, "move"
+    if key in ("down", "j"):
+        return (selected + 1) % count, "move"
+    return selected, "ignore"
+
+
+def _read_key(fd: int) -> str:
+    """Read one keypress from ``fd`` (raw/unbuffered); map arrow escapes to up/down.
+
+    Reads via ``os.read`` rather than buffered ``sys.stdin`` so ``select`` and the reads
+    see the same bytes — otherwise an arrow's ``\\x1b[B`` gets slurped into Python's
+    buffer and the trailing ``[B`` is invisible to ``select``, misreading it as Esc.
+    """
+    data = os.read(fd, 1)
+    if data != b"\x1b":
+        return data.decode("utf-8", "ignore")
+    # Possible escape sequence: only treat as an arrow if more bytes are actually waiting.
+    if not select.select([fd], [], [], 0.05)[0]:
+        return "\x1b"
+    seq = os.read(fd, 2)
+    if len(seq) == 2 and seq[0:1] == b"[":
+        return {b"A": "up", b"B": "down"}.get(seq[1:2], "ignore")
+    return "\x1b"
+
+
+def _render_menu(out, models, details, default, selected, redraw) -> None:
+    if redraw:
+        out.write(f"\x1b[{len(models) + 1}A")  # back up to the header line
+    out.write("\r\x1b[2KSelect a model  (↑/↓ or j/k · Enter to choose · q to cancel)\n")
+    for index, model in enumerate(models):
+        marker = "❯ " if index == selected else "  "
+        line = f"{marker}{_annotate(model, details, default)}"
+        body = f"\x1b[7m{line}\x1b[0m" if index == selected else line
+        out.write(f"\r\x1b[2K{body}\n")
+    out.flush()
+
+
+def _interactive_pick(models, details, default):
+    """Arrow-key picker using only the standard library.
+
+    Returns the chosen model, ``None`` if cancelled, or ``_FALLBACK`` if a TTY picker
+    can't be set up (e.g. no ``termios``).
+    """
+    try:
+        import termios
+        import tty
+    except ImportError:
+        return _FALLBACK
+    fd = sys.stdin.fileno()
+    try:
+        saved = termios.tcgetattr(fd)
+    except (termios.error, OSError, ValueError):
+        return _FALLBACK
+    selected = models.index(default) if default in models else 0
+    out = sys.stderr
+    out.write("\x1b[?25l")  # hide cursor
+    try:
+        tty.setcbreak(fd)
+        _render_menu(out, models, details, default, selected, redraw=False)
+        while True:
+            new_selected, action = _key_action(_read_key(fd), selected, len(models))
+            if action == "select":
+                return models[selected]
+            if action == "cancel":
+                return None
+            if action == "move":
+                selected = new_selected
+                _render_menu(out, models, details, default, selected, redraw=True)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, saved)
+        out.write("\x1b[?25h\r")  # restore cursor
+        out.flush()
+
+
+def _numbered_pick(models, details, default):
+    """Plain numbered menu — the fallback when there is no interactive terminal."""
     _eprint("Select a model:")
     for index, model in enumerate(models, 1):
         _eprint(f"  {index}) {_annotate(model, details, default)}")
@@ -180,12 +264,29 @@ def pick_model(
         _eprint("Invalid selection.")
 
 
+def pick_model(
+    models: list[str], details: dict | None = None, default: str | None = None
+) -> str | None:
+    """Choose a model: an arrow-key picker on a TTY, else a numbered menu."""
+    if not models:
+        return None
+    details = details or {}
+    if sys.stdin.isatty() and sys.stderr.isatty():
+        try:
+            result = _interactive_pick(models, details, default)
+        except Exception:
+            result = _FALLBACK
+        if result is not _FALLBACK:
+            return result
+    return _numbered_pick(models, details, default)
+
+
 def resolve_model(args, base_url: str, models: list[str]) -> str | None:
     """Pick the model to use, in priority order.
 
     1. ``-m/--model`` (exact id or unique substring)  2. ``--pick`` menu
     3. ``$CLL_MODEL`` (one-off env override)  4. the persisted default
-    (``cll --set-default``)  5. the model currently loaded in LM Studio
+    (``cll set-default``)  5. the model currently loaded in LM Studio
     6. the only model, if there is exactly one  7. otherwise an interactive menu.
     """
     def menu() -> str | None:
@@ -279,17 +380,22 @@ def run_doctor(base_url: str) -> int:
 
 
 EPILOG = """\
-examples:
-  cll                              launch on the default model
-  cll -m qwen3.6                   substring match -> qwen/qwen3.6-35b-a3b
-  cll --pick                       choose a model from a menu
+commands:
+  cll                              launch Claude Code on the default model
+  cll -m qwen3.6                   launch with a model (exact id or unique substring)
+  cll --pick                       launch after choosing from an interactive menu
   cll models                       show a table of available models
-  cll --set-default qwen3.6-27b    pin a default model
-  cll --dangerously-skip-permissions   any unknown flag is forwarded to claude
-  cll -p "explain this repo"       forward arguments to claude
+  cll list-models                  print bare model ids (for scripts/completion)
+  cll set-default <model>          save the default model
+  cll clear-default                clear the saved default
+  cll doctor                       check your environment
+  cll install-completion [shell]   install zsh/bash tab-completion
 
-model is chosen in this order:
-  -m/--model · --pick · $CLL_MODEL · cll --set-default · loaded model · only model · menu
+Unrecognized launch arguments are forwarded to claude, e.g.:
+  cll --dangerously-skip-permissions -p "explain this repo"
+
+model resolution order:
+  -m/--model · --pick · $CLL_MODEL · saved default · loaded model · only model · menu
 
 environment:
   CLL_MODEL        one-off default-model override (beats the saved default)
@@ -310,22 +416,7 @@ def build_parser() -> argparse.ArgumentParser:
         "-m", "--model", help="model id, exact or unique substring (e.g. qwen3.6)"
     )
     parser.add_argument(
-        "--pick", action="store_true", help="choose a model from a menu at launch"
-    )
-    parser.add_argument(
-        "--models", action="store_true", help="show a detailed model table and exit"
-    )
-    parser.add_argument(
-        "--list-models", action="store_true", help="list available model ids and exit"
-    )
-    parser.add_argument(
-        "--set-default", metavar="MODEL", help="persist MODEL as the default, then exit"
-    )
-    parser.add_argument(
-        "--clear-default", action="store_true", help="clear the saved default, then exit"
-    )
-    parser.add_argument(
-        "--doctor", action="store_true", help="check your environment and exit"
+        "--pick", action="store_true", help="choose a model from an interactive menu"
     )
     parser.add_argument(
         "--lmstudio-url",
@@ -338,27 +429,22 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = build_parser()
-    args, claude_args = parser.parse_known_args(argv)
-    base_url = args.lmstudio_url.rstrip("/")
+COMMANDS = (
+    "models",
+    "list-models",
+    "doctor",
+    "set-default",
+    "clear-default",
+    "install-completion",
+)
 
-    # --- exits that don't launch claude ---
-    if args.set_default:
-        save_config({**load_config(), "default_model": args.set_default})
-        _eprint(f"cll: default model set to '{args.set_default}'  ({_config_path()})")
-        return 0
-    if args.clear_default:
-        config = load_config()
-        config.pop("default_model", None)
-        save_config(config)
-        _eprint("cll: saved default cleared")
-        return 0
-    if args.doctor:
-        return run_doctor(base_url)
-    if args.models or claude_args == ["models"]:
+
+def _run_command(command: str, rest: list[str]) -> int:
+    """Run a standalone subcommand (no claude launch) and return its exit code."""
+    base_url = os.environ.get("LM_STUDIO_URL", DEFAULT_LMSTUDIO_URL).rstrip("/")
+    if command == "models":
         return print_models_table(base_url)
-    if args.list_models:
+    if command == "list-models":
         models = ensure_lmstudio(base_url)
         if models is None:
             _eprint(f"cll: LM Studio is not reachable at {base_url}.")
@@ -366,6 +452,44 @@ def main(argv: list[str] | None = None) -> int:
         for model in models:
             print(model)
         return 0
+    if command == "doctor":
+        return run_doctor(base_url)
+    if command == "set-default":
+        if not rest:
+            _eprint("cll: 'set-default' needs a model id, e.g. cll set-default qwen/qwen3.6-27b")
+            return 1
+        save_config({**load_config(), "default_model": rest[0]})
+        _eprint(f"cll: default model set to '{rest[0]}'  ({_config_path()})")
+        return 0
+    if command == "clear-default":
+        config = load_config()
+        config.pop("default_model", None)
+        save_config(config)
+        _eprint("cll: saved default cleared")
+        return 0
+    if command == "install-completion":
+        shell = rest[0] if rest else completions.detect_shell()
+        if shell not in ("zsh", "bash"):
+            _eprint(
+                f"cll: couldn't detect a supported shell (got {shell!r}).\n"
+                "     Run: cll install-completion zsh   (or bash)"
+            )
+            return 1
+        for line in completions.install(shell):
+            _eprint(f"cll: {line}")
+        _eprint(f"cll: {shell} completion installed — restart your shell (e.g. `exec {shell}`).")
+        return 0
+    return 2  # unreachable: command was validated against COMMANDS
+
+
+def main(argv: list[str] | None = None) -> int:
+    raw = list(sys.argv[1:] if argv is None else argv)
+    if raw and raw[0] in COMMANDS:
+        return _run_command(raw[0], raw[1:])
+
+    parser = build_parser()
+    args, claude_args = parser.parse_known_args(raw)
+    base_url = args.lmstudio_url.rstrip("/")
 
     # --- launch claude ---
     if shutil.which("claude") is None:
@@ -419,7 +543,7 @@ def main(argv: list[str] | None = None) -> int:
 
     _eprint(f"cll: Claude Code -> {model}  via LM Studio {base_url}  (normalizer {proxy_url})")
     if auto_resolved and len(models) > 1:
-        _eprint("cll: (cll --pick to choose another · cll --set-default to pin one)")
+        _eprint("cll: (cll --pick to choose another · cll set-default to pin one)")
 
     # Let the child own terminal signals (Ctrl-C); keep the proxy alive until it exits.
     previous = signal.getsignal(signal.SIGINT)

@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Pre-commit hook: mirror CI locally — lint and test before allowing a commit.
+#
+# Enable once per clone (hooks live in the repo, not .git/, so this is opt-in):
+#   git config core.hooksPath .githooks
+#
+# Uses uv when available so it works without a manually activated environment;
+# falls back to ruff/pytest on PATH otherwise.
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+run() {
+  if command -v uv >/dev/null 2>&1; then
+    uv run --extra dev "$@"
+  else
+    "$@"
+  fi
+}
+
+echo "pre-commit: ruff check"
+run ruff check .
+
+echo "pre-commit: pytest"
+run pytest -q
+
+echo "pre-commit: ok"

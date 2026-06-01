@@ -10,6 +10,15 @@ cd claude-lms
 uv tool install --editable .   # or: pip install -e ".[dev]"
 ```
 
+Enable the git hooks (they live in `.githooks/`, so this is opt-in per clone):
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The `pre-commit` hook runs `ruff check` and `pytest` before each commit — the same
+gates as CI — so problems are caught locally instead of in the pipeline.
+
 ## Before opening a PR
 
 ```bash

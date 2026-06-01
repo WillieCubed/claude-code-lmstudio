@@ -106,30 +106,39 @@ uv tool install git+https://github.com/WillieCubed/claude-lms
 
 ## Usage
 
+**Launch** (the default mode):
+
 ```bash
-cll [-m MODEL] [--pick] [--models] [--set-default MODEL] [--doctor] [claude args...]
+cll                       # launch on the default model
+cll -m qwen3.6            # launch with a model (exact id or unique substring)
+cll --pick               # launch after choosing from an interactive menu
 ```
 
-- `cll` — launch Claude Code on a local model. **Any unrecognized arguments are forwarded
-  to `claude`** — e.g. `cll --dangerously-skip-permissions -p "summarize this repo"`.
 - `-m, --model MODEL` — model id, **exact or a unique substring** (`qwen3.6` →
   `qwen/qwen3.6-35b-a3b`). Ambiguous substrings list the candidates.
-- `--pick` — choose a model from an annotated menu at launch.
-- `--models` (or `cll models`) — print a table of available models (arch, quant, which is
-  loaded/default) and exit.
-- `--list-models` — print bare model ids and exit (handy for scripts and completion).
-- `--set-default MODEL` / `--clear-default` — save (or clear) the default model.
-- `--doctor` — check your environment (claude on PATH, LM Studio reachable, loaded model,
-  defaults, available models) and exit.
+- `--pick` — choose from an **interactive arrow-key menu** (↑/↓ or j/k, Enter, q to cancel).
 - `--lmstudio-url URL` — point at a non-default LM Studio server.
+- **Any unrecognized arguments are forwarded to `claude`** — see below.
 
 `cll` starts LM Studio's server automatically (via the `lms` CLI, if installed), spins up
 the normalizer on an ephemeral localhost port for the session, runs `claude`, and tears
 everything down on exit.
 
+**Commands** (standalone actions, no launch):
+
+```bash
+cll models                        # table of available models (arch, quant, loaded/default)
+cll list-models                   # bare model ids (for scripts/completion)
+cll set-default qwen/qwen3.6-27b  # save the default model (to config)
+cll clear-default                 # clear the saved default
+cll doctor                        # check your environment
+cll install-completion [shell]    # install zsh/bash tab-completion
+```
+
 ### Passing flags to `claude`
 
-`cll` consumes only its own flags (above); everything else is forwarded verbatim:
+`cll` consumes only its own launch flags (`-m`, `--pick`, `--lmstudio-url`, `-V`);
+everything else is forwarded verbatim:
 
 ```bash
 cll --dangerously-skip-permissions
@@ -138,30 +147,21 @@ cll -m gpt-oss-20b --permission-mode plan -p "explain this repo"
 
 ### Choosing a model
 
-```bash
-cll --models                        # see what's available
-cll --set-default qwen/qwen3.6-27b  # pin a default (saved to config)
-cll -m qwen3.6                      # one-off, by substring
-cll --pick                          # annotated menu
-```
-
 Resolution order: **`-m/--model` → `--pick` → `$CLL_MODEL` → saved default
-(`cll --set-default`) → currently-loaded model → the only model → menu.** The saved
-default lives in `~/.config/claude-lms/config.json`; `CLL_MODEL` is a one-off override.
+(`cll set-default`) → currently-loaded model → the only model → menu.** The saved default
+lives in `~/.config/claude-lms/config.json`; `CLL_MODEL` is a one-off override.
 
-### Shell completion
+### Shell completion (turnkey)
 
-Complete model ids with `cll -m <TAB>`:
+One command — it writes the completion and wires it into your shell rc (idempotent):
 
 ```bash
-# zsh — put the completion on your fpath:
-mkdir -p ~/.zfunc && cp completions/_cll ~/.zfunc/_cll
-# then in ~/.zshrc, before compinit:
-#   fpath=(~/.zfunc $fpath); autoload -Uz compinit; compinit
-
-# bash — source it from ~/.bashrc:
-source /path/to/claude-lms/completions/cll.bash
+cll install-completion        # autodetects zsh/bash (or pass it explicitly)
+exec $SHELL                   # reload
 ```
+
+Then `cll <TAB>` completes subcommands and `cll -m <TAB>` / `cll set-default <TAB>`
+complete model ids.
 
 ### Configuration
 

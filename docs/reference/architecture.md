@@ -65,10 +65,13 @@ Latency you actually feel is almost entirely the **local model** generating toke
 
 | Path | Role |
 | --- | --- |
-| `src/claude_lms/cli.py` | the `cll` launcher, model resolution, and config |
+| `src/claude_lms/cli.py` | the `cll` launcher, subcommands, model resolution, and config |
 | `src/claude_lms/proxy.py` | `normalize()`, the HTTP handler, and the standalone `claude-lms-proxy` entry point |
-| `completions/` | zsh + bash tab-completion for `cll -m` |
-| `tests/` | `normalize()` behavior, CLI model matching, config, proxy resilience + forwarding |
+| `src/claude_lms/completions.py` | embedded zsh/bash completion scripts + the `cll install-completion` installer |
+| `tests/` | `normalize()`, CLI model matching/keys, config, completion install, proxy resilience + forwarding |
 
-The persistent default model is stored in `~/.config/claude-lms/config.json` (written by
-`cll --set-default`); the `CLL_MODEL` environment variable is a one-off override.
+`cll` has two modes: **launch** (flags like `-m`/`--pick`, with unknown args forwarded to
+`claude`) and **subcommands** (`models`, `list-models`, `doctor`, `set-default`,
+`clear-default`, `install-completion` — standalone actions that exit). The persistent
+default model is stored in `~/.config/claude-lms/config.json` (written by
+`cll set-default`); the `CLL_MODEL` environment variable is a one-off override.

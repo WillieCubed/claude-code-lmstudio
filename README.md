@@ -107,45 +107,70 @@ uv tool install git+https://github.com/WillieCubed/claude-lms
 ## Usage
 
 ```bash
-cll [-m MODEL] [--pick] [--list-models] [--doctor] [--lmstudio-url URL] [claude args...]
+cll [-m MODEL] [--pick] [--models] [--set-default MODEL] [--doctor] [claude args...]
 ```
 
-- `cll` — launch Claude Code on a local model. Any unrecognized arguments are passed
-  straight through to `claude` (e.g. `cll -p "summarize this repo"`).
+- `cll` — launch Claude Code on a local model. **Any unrecognized arguments are forwarded
+  to `claude`** — e.g. `cll --dangerously-skip-permissions -p "summarize this repo"`.
 - `-m, --model MODEL` — model id, **exact or a unique substring** (`qwen3.6` →
   `qwen/qwen3.6-35b-a3b`). Ambiguous substrings list the candidates.
-- `--pick` — choose a model from a numbered menu at launch.
-- `--list-models` — print available models and exit.
-- `--doctor` — check your environment (claude on PATH, LM Studio reachable, loaded
-  model, available models) and exit.
+- `--pick` — choose a model from an annotated menu at launch.
+- `--models` (or `cll models`) — print a table of available models (arch, quant, which is
+  loaded/default) and exit.
+- `--list-models` — print bare model ids and exit (handy for scripts and completion).
+- `--set-default MODEL` / `--clear-default` — save (or clear) the default model.
+- `--doctor` — check your environment (claude on PATH, LM Studio reachable, loaded model,
+  defaults, available models) and exit.
 - `--lmstudio-url URL` — point at a non-default LM Studio server.
 
-`cll` starts LM Studio's server automatically (via the `lms` CLI, if installed), spins
-up the normalizer on an ephemeral localhost port for the session, runs `claude`, and
-tears everything down on exit.
+`cll` starts LM Studio's server automatically (via the `lms` CLI, if installed), spins up
+the normalizer on an ephemeral localhost port for the session, runs `claude`, and tears
+everything down on exit.
 
-### Model selection order
+### Passing flags to `claude`
 
-1. `-m/--model` (exact id or unique substring)
-2. `--pick` menu
-3. `$CLL_MODEL`
-4. the model currently loaded in LM Studio
-5. the only downloaded model, if there is exactly one
-6. otherwise, an interactive menu
-
-Set a personal default in your shell profile:
+`cll` consumes only its own flags (above); everything else is forwarded verbatim:
 
 ```bash
-export CLL_MODEL="qwen/qwen3.6-35b-a3b"
+cll --dangerously-skip-permissions
+cll -m gpt-oss-20b --permission-mode plan -p "explain this repo"
+```
+
+### Choosing a model
+
+```bash
+cll --models                        # see what's available
+cll --set-default qwen/qwen3.6-27b  # pin a default (saved to config)
+cll -m qwen3.6                      # one-off, by substring
+cll --pick                          # annotated menu
+```
+
+Resolution order: **`-m/--model` → `--pick` → `$CLL_MODEL` → saved default
+(`cll --set-default`) → currently-loaded model → the only model → menu.** The saved
+default lives in `~/.config/claude-lms/config.json`; `CLL_MODEL` is a one-off override.
+
+### Shell completion
+
+Complete model ids with `cll -m <TAB>`:
+
+```bash
+# zsh — put the completion on your fpath:
+mkdir -p ~/.zfunc && cp completions/_cll ~/.zfunc/_cll
+# then in ~/.zshrc, before compinit:
+#   fpath=(~/.zfunc $fpath); autoload -Uz compinit; compinit
+
+# bash — source it from ~/.bashrc:
+source /path/to/claude-lms/completions/cll.bash
 ```
 
 ### Configuration
 
-| Variable         | Default                  | Purpose                                  |
-| ---------------- | ------------------------ | ---------------------------------------- |
-| `CLL_MODEL`      | _(unset)_                | Default model when none is given         |
-| `LM_STUDIO_URL`  | `http://localhost:1234`  | LM Studio server base URL                |
-| `CLL_AUTH_TOKEN` | `lm-studio`              | Dummy auth token sent to the endpoint    |
+| Variable / file                   | Purpose                                              |
+| --------------------------------- | ---------------------------------------------------- |
+| `cll --set-default` → config.json | Persistent default model                             |
+| `CLL_MODEL`                       | One-off default-model override (beats the config)    |
+| `LM_STUDIO_URL`                   | LM Studio base URL (default `http://localhost:1234`) |
+| `CLL_AUTH_TOKEN`                  | Dummy auth token sent to the endpoint (`lm-studio`)  |
 
 ---
 

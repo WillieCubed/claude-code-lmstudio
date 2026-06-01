@@ -34,7 +34,7 @@ pytest
 
 ## Reporting bugs
 
-Include the model id, the LM Studio version, and the exact error. `cll --doctor`
+Include the model id, the LM Studio version, and the exact error. `cll doctor`
 output is helpful. If it's a chat-template rejection, the upstream error text and the
 offending model's template are the most useful details.
 

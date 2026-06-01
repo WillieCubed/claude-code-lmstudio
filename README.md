@@ -16,10 +16,10 @@ API Error: 500 ... Jinja Exception: System message must be at the beginning.
 through a tiny normalizing proxy that fixes that error for any model.
 
 ```bash
-cll                       # use the loaded / default local model
+cll                       # use the saved / loaded default model
 cll -m qwen3.6            # exact id or unique substring -> qwen/qwen3.6-35b-a3b
-cll --pick               # choose from a menu at launch
-cll --doctor             # check your setup
+cll --pick               # choose from an interactive menu at launch
+cll doctor               # check your setup
 ```
 
 ---
@@ -167,7 +167,7 @@ complete model ids.
 
 | Variable / file                   | Purpose                                              |
 | --------------------------------- | ---------------------------------------------------- |
-| `cll --set-default` → config.json | Persistent default model                             |
+| `cll set-default` → config.json   | Persistent default model                             |
 | `CLL_MODEL`                       | One-off default-model override (beats the config)    |
 | `LM_STUDIO_URL`                   | LM Studio base URL (default `http://localhost:1234`) |
 | `CLL_AUTH_TOKEN`                  | Dummy auth token sent to the endpoint (`lm-studio`)  |

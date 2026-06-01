@@ -31,8 +31,14 @@ offending model's template are the most useful details.
 
 ## Releasing (maintainers)
 
+Releases are automated by `.github/workflows/release.yml`.
+
 1. Update `CHANGELOG.md` and bump the version in `pyproject.toml` and
    `src/claude_lms/__init__.py`.
 2. Tag `vX.Y.Z` and push the tag.
-3. Build and publish (`uv build` + `uv publish`), then update the Homebrew formula's
-   `url` and `sha256`.
+
+Pushing the tag builds the package, creates the GitHub release, publishes to PyPI (via
+Trusted Publishing), and bumps the formula in `WillieCubed/homebrew-tap`. The PyPI and
+Homebrew steps are gated on the `PYPI_PUBLISH` / `HOMEBREW_BUMP` repository variables and
+the `HOMEBREW_TAP_TOKEN` secret — see the workflow file for the one-time setup. The tap
+holds the source of truth for the Homebrew formula.

@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.1.2]
+
+### Changed
+
+- Performance: the proxy sets `TCP_NODELAY` so streamed tokens are not briefly buffered,
+  skips the JSON re-encode of the request body when it carries no stray system message
+  (nothing to fold), and `cll` no longer fetches the model list twice at startup. These
+  are small wins — the dominant latency is the local model, not the proxy.
+
+### Added
+
+- `docs/reference/architecture.md`: a short explanation of the launcher, the proxy, the
+  request flow, the lifecycle, and the performance levers. README gained Performance and
+  architecture pointers.
+
 ## [0.1.1]
 
 ### Fixed
@@ -36,6 +51,7 @@ All notable changes to this project are documented here. The format is based on
 - Standalone `claude-lms-proxy` console script.
 - Packaging: PyPI metadata, a Homebrew formula, and GitHub Actions CI.
 
-[Unreleased]: https://github.com/WillieCubed/claude-lms/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/WillieCubed/claude-lms/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/WillieCubed/claude-lms/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/WillieCubed/claude-lms/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/WillieCubed/claude-lms/releases/tag/v0.1.0

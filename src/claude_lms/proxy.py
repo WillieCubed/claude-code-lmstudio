@@ -30,7 +30,27 @@ import http.server
 import json
 import os
 import sys
+import tempfile
+import traceback
 from urllib.parse import urlsplit
+
+_DEBUG_LOG = os.path.join(tempfile.gettempdir(), "claude-lms-proxy.log")
+
+
+def _debug(message: str = "") -> None:
+    """Append to the debug log when ``CLAUDE_LMS_DEBUG`` is set; otherwise a no-op.
+
+    With a ``message`` it writes that line; with none it writes the current
+    exception's traceback. Never writes to stderr: ``cll`` runs this proxy in-process
+    and stderr is the interactive Claude Code TUI, which such output would corrupt.
+    """
+    if not os.environ.get("CLAUDE_LMS_DEBUG"):
+        return
+    with open(_DEBUG_LOG, "a") as log:
+        if message:
+            log.write(message + "\n")
+        else:
+            traceback.print_exc(file=log)
 
 
 def _text(content) -> str:
@@ -105,7 +125,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 if isinstance(data, dict) and "messages" in data:
                     body = json.dumps(normalize(data)).encode()
             except (ValueError, TypeError) as exc:
-                sys.stderr.write(f"normalize skipped (unparsed body): {exc}\n")
+                _debug(f"normalize skipped (unparsed body): {exc}")
 
         # Forward upstream. Drop Accept-Encoding so the response is uncompressed and
         # safe to re-stream; http.client sets Content-Length from the body.
@@ -137,15 +157,21 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         try:
             while True:
-                chunk = response.read(2048)
+                # read1() returns as soon as any data is available (up to the cap),
+                # so tokens forward the instant LM Studio emits them.
+                chunk = response.read1(65536)
                 if not chunk:
                     break
-                self.wfile.write(b"%X\r\n%s\r\n" % (len(chunk), chunk))
+                # Write the chunk framing and body separately so the (large) body
+                # is never copied into a combined buffer.
+                self.wfile.write(b"%X\r\n" % len(chunk))
+                self.wfile.write(chunk)
+                self.wfile.write(b"\r\n")
                 self.wfile.flush()
             self.wfile.write(b"0\r\n\r\n")
             self.wfile.flush()
-        except BrokenPipeError:
-            pass  # client (Claude Code) closed the stream early
+        except OSError as exc:
+            _debug(f"client stream closed early: {exc}")  # benign disconnect
         finally:
             conn.close()
 
@@ -163,6 +189,15 @@ class NormalizingProxy(http.server.ThreadingHTTPServer):
         super().__init__(listen_addr, _Handler)
         self.upstream_host = upstream_host
         self.upstream_port = upstream_port
+
+    def handle_error(self, request, client_address):
+        # Claude Code uses keep-alive and routinely resets pooled/streamed
+        # connections; those socket errors are benign. Never let the default handler
+        # print a traceback to stderr — cll runs this in-process and stderr is the
+        # live Claude Code TUI, which such output corrupts.
+        if isinstance(sys.exc_info()[1], OSError):
+            return
+        _debug()  # unexpected error -> debug log only, never the terminal
 
 
 def make_server(
@@ -187,6 +222,9 @@ def main() -> None:
 
     server = make_server("127.0.0.1", listen_port, upstream_host, upstream_port)
     host, port = server.server_address
+    # Standalone entrypoint only: here stderr is a normal terminal, so a startup
+    # banner is fine. The in-process `cll` path uses make_server() directly and must
+    # never reach this; the server/handler keep stderr silent for that reason.
     sys.stderr.write(
         f"claude-lms proxy: http://{host}:{port} "
         f"-> {upstream_host}:{upstream_port}\n"

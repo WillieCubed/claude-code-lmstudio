@@ -7,7 +7,6 @@ Resolves a model, starts a per-session normalizing proxy on an ephemeral local p
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import shutil
 import signal
@@ -16,6 +15,7 @@ import sys
 import threading
 import urllib.error
 import urllib.request
+import json
 from urllib.parse import urlsplit
 
 from . import __version__
@@ -76,6 +76,21 @@ def ensure_lmstudio(base_url: str) -> bool:
     return False
 
 
+def match_model(requested: str, available: list[str]) -> tuple[str | None, list[str]]:
+    """Resolve a possibly-partial model id against available ids.
+
+    Returns ``(resolved, candidates)``: an exact id or unique substring match yields
+    ``(id, [])``; an ambiguous substring yields ``(None, matches)``; no match yields
+    ``(None, [])``.
+    """
+    if requested in available:
+        return requested, []
+    matches = [m for m in available if requested.lower() in m.lower()]
+    if len(matches) == 1:
+        return matches[0], []
+    return None, matches
+
+
 def pick_model(models: list[str]) -> str | None:
     """Prompt the user to choose a model from a numbered menu."""
     if not models:
@@ -98,11 +113,22 @@ def pick_model(models: list[str]) -> str | None:
 def resolve_model(args, base_url: str, models: list[str]) -> str | None:
     """Pick the model to use, in priority order.
 
-    1. ``-m/--model``  2. ``--pick`` menu  3. ``$CLL_MODEL``
-    4. the model currently loaded in LM Studio  5. the only model, if there is one
-    6. otherwise an interactive menu.
+    1. ``-m/--model`` (exact id or unique substring)  2. ``--pick`` menu
+    3. ``$CLL_MODEL``  4. the model currently loaded in LM Studio
+    5. the only model, if there is exactly one  6. otherwise an interactive menu.
     """
     if args.model:
+        resolved, candidates = match_model(args.model, models)
+        if resolved:
+            return resolved
+        if candidates:
+            _eprint(f"cll: '{args.model}' matches multiple models:")
+            for candidate in candidates:
+                _eprint(f"  - {candidate}")
+            return None
+        if models:
+            _eprint(f"cll: model '{args.model}' not found in LM Studio.")
+            return pick_model(models)
         return args.model
     if args.pick:
         return pick_model(models)
@@ -116,22 +142,82 @@ def resolve_model(args, base_url: str, models: list[str]) -> str | None:
     return pick_model(models)
 
 
+def run_doctor(base_url: str) -> int:
+    """Print an environment checklist and return 0 if everything looks ready."""
+    claude = shutil.which("claude")
+    lms = shutil.which("lms")
+    reachable = bool(list_models(base_url))
+    models = list_models(base_url)
+    loaded = loaded_model(base_url)
+    default = os.environ.get("CLL_MODEL")
+
+    checks = [
+        (bool(claude), f"claude CLI            {claude or 'not found — https://claude.com/claude-code'}"),
+        (True, f"lms CLI               {lms or 'not found (optional; auto-starts the server)'}"),
+        (reachable, f"LM Studio server      {'reachable at ' + base_url if reachable else 'NOT reachable at ' + base_url}"),
+    ]
+    if loaded:
+        checks.append((True, f"loaded model          {loaded}"))
+    if default:
+        checks.append((True, f"CLL_MODEL default     {default}"))
+
+    for passed, message in checks:
+        _eprint(f"  {'✓' if passed else '✗'} {message}")
+    if models:
+        _eprint(f"  · available models    {len(models)}")
+        for model in models:
+            _eprint(f"      {model}")
+
+    ready = all(passed for passed, _ in checks)
+    _eprint("")
+    _eprint("cll: ready." if ready else "cll: not ready — resolve the ✗ items above.")
+    return 0 if ready else 1
+
+
+EPILOG = """\
+examples:
+  cll                            launch on the default model
+  cll -m qwen3.6                 substring match -> qwen/qwen3.6-35b-a3b
+  cll --pick                     choose a model from a menu
+  cll --list-models              list available models and exit
+  cll --doctor                   check your setup and exit
+  cll -p "explain this repo"     forward arguments to claude
+
+environment:
+  CLL_MODEL        default model when none is given
+  LM_STUDIO_URL    LM Studio base URL (default http://localhost:1234)
+  CLL_AUTH_TOKEN   dummy auth token sent to the endpoint (default lm-studio)
+"""
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="cll",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Launch Claude Code against a local LM Studio model. "
         "Unrecognized arguments are forwarded to `claude`.",
+        epilog=EPILOG,
     )
-    parser.add_argument("-m", "--model", help="model id to use (e.g. qwen/qwen3.6-35b-a3b)")
+    parser.add_argument(
+        "-m", "--model", help="model id, exact or unique substring (e.g. qwen3.6)"
+    )
     parser.add_argument(
         "--pick", action="store_true", help="choose a model from a menu at launch"
+    )
+    parser.add_argument(
+        "--list-models", action="store_true", help="list available models and exit"
+    )
+    parser.add_argument(
+        "--doctor", action="store_true", help="check your environment and exit"
     )
     parser.add_argument(
         "--lmstudio-url",
         default=os.environ.get("LM_STUDIO_URL", DEFAULT_LMSTUDIO_URL),
         help="LM Studio base URL (default: %(default)s)",
     )
-    parser.add_argument("-V", "--version", action="version", version=f"%(prog)s {__version__}")
+    parser.add_argument(
+        "-V", "--version", action="version", version=f"%(prog)s {__version__}"
+    )
     return parser
 
 
@@ -139,6 +225,17 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args, claude_args = parser.parse_known_args(argv)
     base_url = args.lmstudio_url.rstrip("/")
+
+    if args.doctor:
+        return run_doctor(base_url)
+
+    if args.list_models:
+        if not ensure_lmstudio(base_url):
+            _eprint(f"cll: LM Studio is not reachable at {base_url}.")
+            return 1
+        for model in list_models(base_url):
+            print(model)
+        return 0
 
     if shutil.which("claude") is None:
         _eprint(

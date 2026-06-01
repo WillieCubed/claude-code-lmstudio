@@ -1,5 +1,9 @@
 # claude-code-lmstudio
 
+[![CI](https://github.com/WillieCubed/claude-code-lmstudio/actions/workflows/ci.yml/badge.svg)](https://github.com/WillieCubed/claude-code-lmstudio/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Python](https://img.shields.io/badge/python-3.8%2B-blue)
+
 Run [Claude Code](https://claude.com/claude-code) against your **local** models in
 [LM Studio](https://lmstudio.ai) — including Qwen, GLM, and other models whose chat
 templates otherwise reject Claude Code's requests with:
@@ -13,11 +17,10 @@ through a tiny normalizing proxy that fixes that error for any model.
 
 ```bash
 cll                       # use the loaded / default local model
-cll -m qwen/qwen3.6-35b-a3b
-cll --pick                # choose from a menu at launch
+cll -m qwen3.6            # exact id or unique substring -> qwen/qwen3.6-35b-a3b
+cll --pick               # choose from a menu at launch
+cll --doctor             # check your setup
 ```
-
-[![CI](https://github.com/WillieCubed/claude-code-lmstudio/actions/workflows/ci.yml/badge.svg)](https://github.com/WillieCubed/claude-code-lmstudio/actions/workflows/ci.yml)
 
 ---
 
@@ -69,10 +72,22 @@ message — instead of patching one model's Jinja template by hand.
 
 ## Install
 
-Requires Python 3.8+ and the [`claude` CLI](https://claude.com/claude-code). LM Studio
-must be installed with at least one model downloaded.
+Requires the [`claude` CLI](https://claude.com/claude-code) and LM Studio with at least
+one model downloaded.
 
-### pipx (recommended)
+### uv (recommended)
+
+```bash
+uv tool install claude-code-lmstudio
+```
+
+Or try it once without installing:
+
+```bash
+uvx claude-code-lmstudio --doctor
+```
+
+### pipx
 
 ```bash
 pipx install claude-code-lmstudio
@@ -95,7 +110,7 @@ brew install WillieCubed/tap/claude-code-lmstudio
 ```bash
 git clone https://github.com/WillieCubed/claude-code-lmstudio
 cd claude-code-lmstudio
-./scripts/install.sh
+uv tool install .        # or: ./scripts/install.sh
 ```
 
 ---
@@ -103,22 +118,26 @@ cd claude-code-lmstudio
 ## Usage
 
 ```bash
-cll [-m MODEL] [--pick] [--lmstudio-url URL] [claude args...]
+cll [-m MODEL] [--pick] [--list-models] [--doctor] [--lmstudio-url URL] [claude args...]
 ```
 
 - `cll` — launch Claude Code on a local model. Any unrecognized arguments are passed
   straight through to `claude` (e.g. `cll -p "summarize this repo"`).
-- `-m, --model MODEL` — use a specific model id (e.g. `qwen/qwen3.6-35b-a3b`).
+- `-m, --model MODEL` — model id, **exact or a unique substring** (`qwen3.6` →
+  `qwen/qwen3.6-35b-a3b`). Ambiguous substrings list the candidates.
 - `--pick` — choose a model from a numbered menu at launch.
+- `--list-models` — print available models and exit.
+- `--doctor` — check your environment (claude on PATH, LM Studio reachable, loaded
+  model, available models) and exit.
 - `--lmstudio-url URL` — point at a non-default LM Studio server.
 
-`cll` will start LM Studio's server automatically (via the `lms` CLI, if installed),
-spin up the normalizer on an ephemeral localhost port for the session, run `claude`,
-and tear everything down on exit.
+`cll` starts LM Studio's server automatically (via the `lms` CLI, if installed), spins
+up the normalizer on an ephemeral localhost port for the session, runs `claude`, and
+tears everything down on exit.
 
 ### Model selection order
 
-1. `-m/--model`
+1. `-m/--model` (exact id or unique substring)
 2. `--pick` menu
 3. `$CLL_MODEL`
 4. the model currently loaded in LM Studio
@@ -157,14 +176,27 @@ LM_STUDIO_URL=http://localhost:1234 LM_PROXY_PORT=1366 claude-code-lmstudio-prox
 # then point your client at http://localhost:1366
 ```
 
+## Uninstall
+
+Matches however you installed it:
+
+```bash
+uv tool uninstall claude-code-lmstudio    # uv
+pipx uninstall claude-code-lmstudio       # pipx
+pip uninstall claude-code-lmstudio        # pip
+brew uninstall claude-code-lmstudio       # Homebrew
+```
+
 ## Development
 
 ```bash
-pip install -e ".[dev]"
-pytest          # unit tests for the normalizer
+uv tool install --editable .   # or: pip install -e ".[dev]"
+pytest                         # unit tests for the normalizer + CLI helpers
 ruff check .
 ```
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
-This repo uses the MIT License
+This repo uses the [MIT License](LICENSE).

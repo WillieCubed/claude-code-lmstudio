@@ -1,0 +1,38 @@
+# Contributing
+
+Thanks for your interest in improving claude-code-lmstudio.
+
+## Development setup
+
+```bash
+git clone https://github.com/WillieCubed/claude-code-lmstudio
+cd claude-code-lmstudio
+uv tool install --editable .   # or: pip install -e ".[dev]"
+```
+
+## Before opening a PR
+
+```bash
+ruff check .
+pytest
+```
+
+- Keep the package **dependency-free** (standard library only). It's a big part of why
+  this is easy to install and trust.
+- The normalizer's behavior is pinned by `tests/test_normalize.py`. If you change how
+  requests are rewritten, update those tests in the same change.
+- Match the existing style: type hints, short docstrings, `ruff`-clean.
+
+## Reporting bugs
+
+Include the model id, the LM Studio version, and the exact error. `cll --doctor`
+output is helpful. If it's a chat-template rejection, the upstream error text and the
+offending model's template are the most useful details.
+
+## Releasing (maintainers)
+
+1. Update `CHANGELOG.md` and bump the version in `pyproject.toml` and
+   `src/claude_code_lmstudio/__init__.py`.
+2. Tag `vX.Y.Z` and push the tag.
+3. Build and publish (`uv build` + `uv publish`), then update the Homebrew formula's
+   `url` and `sha256`.

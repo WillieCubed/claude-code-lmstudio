@@ -42,3 +42,6 @@ Trusted Publishing), and bumps the formula in `WillieCubed/homebrew-tap`. The Py
 Homebrew steps are gated on the `PYPI_PUBLISH` / `HOMEBREW_BUMP` repository variables and
 the `HOMEBREW_TAP_TOKEN` secret — see the workflow file for the one-time setup. The tap
 holds the source of truth for the Homebrew formula.
+
+For the full automated and manual release procedures (and the one-time setup), see
+[docs/reference/releasing.md](docs/reference/releasing.md).

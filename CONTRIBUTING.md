@@ -1,12 +1,12 @@
 # Contributing
 
-Thanks for your interest in improving claude-code-lmstudio.
+Thanks for your interest in improving claude-lms.
 
 ## Development setup
 
 ```bash
-git clone https://github.com/WillieCubed/claude-code-lmstudio
-cd claude-code-lmstudio
+git clone https://github.com/WillieCubed/claude-lms
+cd claude-lms
 uv tool install --editable .   # or: pip install -e ".[dev]"
 ```
 
@@ -32,7 +32,7 @@ offending model's template are the most useful details.
 ## Releasing (maintainers)
 
 1. Update `CHANGELOG.md` and bump the version in `pyproject.toml` and
-   `src/claude_code_lmstudio/__init__.py`.
+   `src/claude_lms/__init__.py`.
 2. Tag `vX.Y.Z` and push the tag.
 3. Build and publish (`uv build` + `uv publish`), then update the Homebrew formula's
    `url` and `sha256`.

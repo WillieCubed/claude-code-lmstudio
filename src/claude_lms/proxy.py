@@ -15,7 +15,7 @@ This proxy sits between Claude Code and LM Studio and folds every non-leading
 model's chat template accepts the request. Responses stream through unbuffered so live
 token streaming keeps working.
 
-Standalone usage (``claude-code-lmstudio-proxy`` console script) reads configuration
+Standalone usage (``claude-lms-proxy`` console script) reads configuration
 from the environment:
 
     LM_STUDIO_URL   upstream LM Studio base URL   (default http://localhost:1234)
@@ -188,7 +188,7 @@ def main() -> None:
     server = make_server("127.0.0.1", listen_port, upstream_host, upstream_port)
     host, port = server.server_address
     sys.stderr.write(
-        f"claude-code-lmstudio proxy: http://{host}:{port} "
+        f"claude-lms proxy: http://{host}:{port} "
         f"-> {upstream_host}:{upstream_port}\n"
     )
     sys.stderr.flush()

@@ -1,6 +1,6 @@
-# claude-code-lmstudio
+# claude-lms
 
-[![CI](https://github.com/WillieCubed/claude-code-lmstudio/actions/workflows/ci.yml/badge.svg)](https://github.com/WillieCubed/claude-code-lmstudio/actions/workflows/ci.yml)
+[![CI](https://github.com/WillieCubed/claude-lms/actions/workflows/ci.yml/badge.svg)](https://github.com/WillieCubed/claude-lms/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.8%2B-blue)
 
@@ -78,38 +78,38 @@ one model downloaded.
 ### uv (recommended)
 
 ```bash
-uv tool install claude-code-lmstudio
+uv tool install claude-lms
 ```
 
 Or try it once without installing:
 
 ```bash
-uvx claude-code-lmstudio --doctor
+uvx claude-lms --doctor
 ```
 
 ### pipx
 
 ```bash
-pipx install claude-code-lmstudio
+pipx install claude-lms
 ```
 
 ### pip
 
 ```bash
-pip install claude-code-lmstudio
+pip install claude-lms
 ```
 
 ### Homebrew
 
 ```bash
-brew install WillieCubed/tap/claude-code-lmstudio
+brew install WillieCubed/tap/claude-lms
 ```
 
 ### From source
 
 ```bash
-git clone https://github.com/WillieCubed/claude-code-lmstudio
-cd claude-code-lmstudio
+git clone https://github.com/WillieCubed/claude-lms
+cd claude-lms
 uv tool install .        # or: ./scripts/install.sh
 ```
 
@@ -172,7 +172,7 @@ and streaming both pass through unchanged.
 The normalizer can run standalone (e.g. for other Anthropic-compatible clients):
 
 ```bash
-LM_STUDIO_URL=http://localhost:1234 LM_PROXY_PORT=1366 claude-code-lmstudio-proxy
+LM_STUDIO_URL=http://localhost:1234 LM_PROXY_PORT=1366 claude-lms-proxy
 # then point your client at http://localhost:1366
 ```
 
@@ -181,10 +181,10 @@ LM_STUDIO_URL=http://localhost:1234 LM_PROXY_PORT=1366 claude-code-lmstudio-prox
 Matches however you installed it:
 
 ```bash
-uv tool uninstall claude-code-lmstudio    # uv
-pipx uninstall claude-code-lmstudio       # pipx
-pip uninstall claude-code-lmstudio        # pip
-brew uninstall claude-code-lmstudio       # Homebrew
+uv tool uninstall claude-lms    # uv
+pipx uninstall claude-lms       # pipx
+pip uninstall claude-lms        # pip
+brew uninstall claude-lms       # Homebrew
 ```
 
 ## Development

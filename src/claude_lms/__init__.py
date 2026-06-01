@@ -1,4 +1,4 @@
-"""claude-code-lmstudio: run Claude Code against local models in LM Studio.
+"""claude-lms: run Claude Code against local models in LM Studio.
 
 Exposes a normalizing reverse proxy that makes strict chat templates (e.g. Qwen)
 accept Claude Code's requests, and a ``cll`` launcher that wires it all together.

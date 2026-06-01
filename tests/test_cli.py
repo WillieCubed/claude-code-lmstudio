@@ -1,5 +1,5 @@
 """Tests for CLI helpers that don't touch the network."""
-from claude_code_lmstudio.cli import match_model
+from claude_lms.cli import match_model
 
 AVAILABLE = [
     "qwen/qwen3.6-35b-a3b",

@@ -4,7 +4,7 @@ These pin the exact behavior that makes strict chat templates (Qwen) accept Clau
 Code's requests: after normalization there is at most one ``system`` field and no
 ``system``-role message anywhere in ``messages``.
 """
-from claude_code_lmstudio.proxy import normalize
+from claude_lms.proxy import normalize
 
 
 def _no_system_in_messages(payload):

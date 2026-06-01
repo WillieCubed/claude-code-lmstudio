@@ -18,8 +18,8 @@ All notable changes to this project are documented here. The format is based on
 - Model selection: `-m/--model` (exact id or unique substring), `--pick` menu,
   `$CLL_MODEL` default, current-loaded-model detection.
 - `--list-models` and `--doctor` helpers.
-- Standalone `claude-code-lmstudio-proxy` console script.
+- Standalone `claude-lms-proxy` console script.
 - Packaging: PyPI metadata, a Homebrew formula, and GitHub Actions CI.
 
-[Unreleased]: https://github.com/WillieCubed/claude-code-lmstudio/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/WillieCubed/claude-code-lmstudio/releases/tag/v0.1.0
+[Unreleased]: https://github.com/WillieCubed/claude-lms/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/WillieCubed/claude-lms/releases/tag/v0.1.0

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Install claude-code-lmstudio from a source checkout.
+# Install claude-lms from a source checkout.
 #
 # Prefers pipx (isolated, recommended for CLI tools); falls back to `pip install
-# --user`. After install, the `cll` and `claude-code-lmstudio-proxy` commands are on
+# --user`. After install, the `cll` and `claude-lms-proxy` commands are on
 # your PATH (ensure your user bin dir is on PATH — pipx will tell you if it isn't).
 set -euo pipefail
 

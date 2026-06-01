@@ -100,6 +100,9 @@ def normalize(payload: dict) -> dict:
 
 class _Handler(http.server.BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
+    # Disable Nagle's algorithm so each streamed SSE chunk goes out immediately
+    # instead of being briefly buffered waiting for more data.
+    disable_nagle_algorithm = True
 
     def log_message(self, *args):  # silence default access logging
         pass
@@ -118,11 +121,16 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length) if length else b""
 
-        # Rewrite the request so a single leading system message is presented.
+        # Rewrite the request only when it carries a stray (non-leading) system
+        # message — that's the sole thing normalize fixes. Skipping the re-encode
+        # otherwise avoids a json.dumps of the (often large) body on every request.
         if self.command == "POST" and body:
             try:
                 data = json.loads(body)
-                if isinstance(data, dict) and "messages" in data:
+                if isinstance(data, dict) and any(
+                    isinstance(m, dict) and m.get("role") == "system"
+                    for m in data.get("messages", [])
+                ):
                     body = json.dumps(normalize(data)).encode()
             except (ValueError, TypeError) as exc:
                 _debug(f"normalize skipped (unparsed body): {exc}")

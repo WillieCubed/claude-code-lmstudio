@@ -91,3 +91,25 @@ def test_proxy_forwards_and_folds_stray_system_messages():
     assert response.status == 200
     assert all(m["role"] != "system" for m in forwarded["messages"])
     assert any(block["text"] == "folded" for block in forwarded["system"])
+
+
+def test_proxy_leaves_a_clean_request_unchanged():
+    # No stray system message -> nothing to fold -> the body is forwarded verbatim
+    # (not re-encoded), so a string `system` field stays a string.
+    upstream = _start_echo_upstream()
+    up_host, up_port = upstream.server_address
+    proxy = make_server(listen_port=0, upstream_host=up_host, upstream_port=up_port)
+    threading.Thread(target=proxy.serve_forever, daemon=True).start()
+    p_host, p_port = proxy.server_address
+
+    payload = json.dumps({"system": "top", "messages": [{"role": "user", "content": "hi"}]})
+    conn = http.client.HTTPConnection(p_host, p_port, timeout=5)
+    conn.request("POST", "/v1/messages", payload, {"Content-Type": "application/json"})
+    response = conn.getresponse()
+    forwarded = json.loads(response.read())
+    conn.close()
+    proxy.shutdown()
+    upstream.shutdown()
+
+    assert forwarded["system"] == "top"
+    assert forwarded["messages"] == [{"role": "user", "content": "hi"}]

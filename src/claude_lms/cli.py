@@ -61,19 +61,26 @@ def loaded_model(base_url: str) -> str | None:
     return None
 
 
-def ensure_lmstudio(base_url: str) -> bool:
-    """Ensure the LM Studio server is reachable, starting it via ``lms`` if needed."""
-    if list_models(base_url):
-        return True
+def ensure_lmstudio(base_url: str) -> "list[str] | None":
+    """Return available chat models, starting the LM Studio server if needed.
+
+    Returns the model ids (embeddings excluded), or ``None`` if the server is
+    unreachable or serves no chat models. Returning the list lets callers avoid a
+    second ``/v1/models`` fetch.
+    """
+    models = list_models(base_url)
+    if models:
+        return models
     if shutil.which("lms"):
         subprocess.run(
             ["lms", "server", "start"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        if list_models(base_url):
-            return True
-    return False
+        models = list_models(base_url)
+        if models:
+            return models
+    return None
 
 
 def match_model(requested: str, available: list[str]) -> tuple[str | None, list[str]]:
@@ -146,8 +153,8 @@ def run_doctor(base_url: str) -> int:
     """Print an environment checklist and return 0 if everything looks ready."""
     claude = shutil.which("claude")
     lms = shutil.which("lms")
-    reachable = bool(list_models(base_url))
     models = list_models(base_url)
+    reachable = bool(models)
     loaded = loaded_model(base_url)
     default = os.environ.get("CLL_MODEL")
 
@@ -230,10 +237,11 @@ def main(argv: list[str] | None = None) -> int:
         return run_doctor(base_url)
 
     if args.list_models:
-        if not ensure_lmstudio(base_url):
+        models = ensure_lmstudio(base_url)
+        if models is None:
             _eprint(f"cll: LM Studio is not reachable at {base_url}.")
             return 1
-        for model in list_models(base_url):
+        for model in models:
             print(model)
         return 0
 
@@ -244,7 +252,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 127
 
-    if not ensure_lmstudio(base_url):
+    models = ensure_lmstudio(base_url)
+    if models is None:
         _eprint(
             f"cll: LM Studio is not reachable at {base_url}.\n"
             "     Start its local server (e.g. `lms server start`) and make sure a "
@@ -252,7 +261,6 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    models = list_models(base_url)
     model = resolve_model(args, base_url, models)
     if not model:
         _eprint("cll: no model selected.")
